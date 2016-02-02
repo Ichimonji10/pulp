@@ -5,29 +5,32 @@
 # performs other system-wide actions. Execute with care.
 set -euo pipefail
 
-# Downgrade these plugins to version 2.7.
+# This associative array is incomplete. Patches welcome.
+declare -rA repos_branches=(
+    [pulp]=2.7-dev
+    [pulp_ostree]=1.0-dev
+    [pulp_puppet]=2.7-dev
+    [pulp_python]=1.0-dev
+    [pulp_rpm]=2.7-dev
+)
+
+# Reinstall plugins we know how to handle, and uninstall all others.
 pushd ~/devel
-for repo in pulp{,_puppet,_rpm}; do
-    if [ -d "$repo" ]; then
-        pushd "$repo"
-        git checkout 2.7-dev
+for repo in pulp*; do
+    # Defend against e.g. a file named "pulp_log.txt".
+    if [ ! -d "$repo" ]; then
+        continue
+    fi
+
+    pushd "$repo"
+    if [ -n "${repos_branches[$repo]:-}" ]; then
+        git checkout "${repos_branches[$repo]}"
         find . -name '*.py[c0]' -delete
         sudo ./pulp-dev.py --install
-        popd
-    fi
-done
-popd
-
-# Completely uninstall these plugins. Some or all of these plugins are available
-# for Pulp 2.7, but the authors of this script have not (yet!) needed to
-# determine which branch(es) should be checked out. Patches welcome.
-pushd ~/devel
-for repo in pulp_{docker,python}; do
-    if [ -d "$repo" ]; then
-        pushd "$repo"
+    else
         sudo ./pulp-dev.py --uninstall
-        popd
     fi
+    popd
 done
 popd
 
